@@ -3,59 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Koneksi Realtime Database - Cas Cis Cus</title>
+    <title>Notepad Online - Ala WhatsApp</title>
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding: 50px 20px; 
-            text-align: center; 
-            background-color: #f4f6f9;
+            padding: 30px 20px; 
+            background-color: #e5ddd5; /* Warna background WA */
+            margin: 0;
         }
         .container {
-            max-width: 400px;
+            max-width: 450px;
             margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
         }
-        h2 { color: #333; margin-bottom: 20px; }
+        .header {
+            background-color: #075e54;
+            color: white;
+            padding: 15px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        /* Area tempat pesan/catatan muncul */
+        #chatArea {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Wallpaper WA */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        /* Style Bubble Chat ala WA */
+        .bubble {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            padding: 10px 15px;
+            border-radius: 10px 10px 0 10px;
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+            position: relative;
+        }
+        .time {
+            font-size: 10px;
+            color: #777;
+            text-align: right;
+            margin-top: 5px;
+            display: block;
+        }
+        .input-area {
+            padding: 15px;
+            background: #f0f0f0;
+            display: flex;
+            gap: 10px;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
         input { 
-            width: 90%; 
+            flex: 1;
             padding: 12px; 
-            margin-bottom: 15px; 
             border: 1px solid #ccc; 
-            border-radius: 4px;
-            font-size: 16px; 
+            border-radius: 20px;
+            font-size: 15px; 
+            outline: none;
         }
         button { 
-            width: 96%; 
-            padding: 12px; 
-            background-color: #0288d1; 
+            padding: 12px 20px; 
+            background-color: #128c7e; 
             color: white; 
             border: none; 
-            border-radius: 4px;
-            font-size: 16px; 
+            border-radius: 50%;
+            font-size: 15px; 
             cursor: pointer;
             font-weight: bold;
         }
-        button:hover { background-color: #01579b; }
+        button:hover { background-color: #075e54; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Input Realtime DB</h2>
-        <input type="text" id="namaInput" placeholder="Ketik data di sini...">
-        <button id="btnSimpan">Kirim ke Firebase</button>
+        <div class="header">📝 Notepad Online Real-time</div>
+        
+        <div id="chatArea"></div>
+
+        <div class="input-area">
+            <input type="text" id="namaInput" placeholder="Ketik catatan di sini...">
+            <button id="btnSimpan">></button>
+        </div>
     </div>
 
     <script type="module">
-        // 1. Import fungsi utama dari CDN Firebase versi 12.14.0
+        // 1. Tambahkan import 'onChildAdded' buat dengerin data baru
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
 
-        // 2. Kunci akses (Config) asli milik project lo
+        // 2. Config asli milik project lo
         const firebaseConfig = {
             apiKey: "AIzaSyCKtNlMr5NLj8-dYFUHVHTd_-tTyGpQC4U",
             authDomain: "upload-gambar-93b5d.firebaseapp.com",
@@ -67,36 +117,57 @@
             measurementId: "G-R4EXJLQ8SS"
         };
 
-        // 3. Jalankan Inisialisasi Firebase & Realtime Database
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 4. Logika menangkap input HTML dan mengirim ke Firebase
         const btnSimpan = document.getElementById('btnSimpan');
         const namaInput = document.getElementById('namaInput');
+        const chatArea = document.getElementById('chatArea');
 
+        // REFF DATABASE
+        const dbRef = ref(db, 'laporan_data');
+
+        // A. FUNGSI KIRIM DATA (Sama kayak tadi)
         btnSimpan.addEventListener('click', () => {
             const dataBaru = namaInput.value;
+            if(dataBaru.trim() === "") return;
 
-            // Validasi jika input kosong
-            if(dataBaru.trim() === "") {
-                alert("Isi dulu bos datanya!");
-                return;
-            }
-
-            // Fungsi push() otomatis membuat ID unik di dalam node 'laporan_data'
-            push(ref(db, 'laporan_data'), {
+            push(dbRef, {
                 konten: dataBaru,
-                waktu: new Date().toISOString()
+                waktu: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) // Format jam WA (HH:MM)
             })
             .then(() => {
-                alert("Mantap! Data berhasil masuk ke Realtime DB!");
-                namaInput.value = ""; // Mengosongkan form input setelah sukses
+                namaInput.value = ""; 
             })
             .catch((error) => {
-                alert("Waduh gagal kirim! Cek console browser.");
-                console.error("Detail Error: ", error);
+                console.error(error);
             });
+        });
+
+        // Dukungan tombol Enter buat kirim
+        namaInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnSimpan.click();
+        });
+
+
+        // B. FUNGSI UTAMA: NAMPILIN DATA SECARA REAL-TIME
+        // onChildAdded bakal otomatis jalan setiap ada data baru di Firebase
+        onChildAdded(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            
+            // Bikin struktur bubble chat HTML baru
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            bubble.innerHTML = `
+                ${data.konten}
+                <span class="time">${data.waktu || 'Baru saja'}</span>
+            `;
+
+            // Masukin bubble baru ke dalam area chat
+            chatArea.appendChild(bubble);
+
+            // Otomatis scroll ke paling bawah biar kayak WA asli
+            chatArea.scrollTop = chatArea.scrollHeight;
         });
     </script>
 </body>
